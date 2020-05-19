@@ -82,7 +82,7 @@ class StripeDialog : DialogFragment() {
 
                 stripeInstance.createPaymentMethod(
                     paymentMethodCreateParams,
-                    object : ApiResultCallback<PaymentMethod> {
+                    callback = object : ApiResultCallback<PaymentMethod> {
                         override fun onSuccess(result: PaymentMethod) {
                             view?.findViewById<View>(R.id.progress)?.visibility = View.GONE
                             view?.findViewById<View>(R.id.buttonSave)?.visibility = View.GONE

@@ -16,6 +16,8 @@ import com.google.android.gms.wallet.WalletConstants;
 import com.stripe.android.*;
 import com.stripe.android.model.*;
 
+import org.jetbrains.annotations.NotNull;
+
 import de.jonasbark.stripepayment.StripeDialog;
 import io.flutter.app.FlutterActivity;
 import io.flutter.plugin.common.PluginRegistry;
@@ -154,17 +156,20 @@ public class StripeModule extends ReactContextBaseJavaModule {
       ArgCheck.notEmptyString(mPublicKey);
 
       mStripe.createToken(
-        createCard(cardData),
-        mPublicKey,
-        new TokenCallback() {
-          public void onSuccess(Token token) {
-            promise.resolve(convertTokenToWritableMap(token));
-          }
-          public void onError(Exception error) {
-            error.printStackTrace();
-            promise.reject(toErrorCode(error), error.getMessage());
-          }
-        });
+              createCard(cardData),
+              mPublicKey,
+              new ApiResultCallback<Token>() {
+                  @Override
+                  public void onSuccess(Token token) {
+                      promise.resolve(convertTokenToWritableMap(token));
+                  }
+
+                  @Override
+                  public void onError(@NotNull Exception error) {
+                      error.printStackTrace();
+                      promise.reject(toErrorCode(error), error.getMessage());
+                  }
+              });
     } catch (Exception e) {
       promise.reject(toErrorCode(e), e.getMessage());
     }
@@ -177,18 +182,21 @@ public class StripeModule extends ReactContextBaseJavaModule {
       ArgCheck.notEmptyString(mPublicKey);
 
       mStripe.createBankAccountToken(
-        createBankAccount(accountData),
-        mPublicKey,
-        null,
-        new TokenCallback() {
-          public void onSuccess(Token token) {
-            promise.resolve(convertTokenToWritableMap(token));
-          }
-          public void onError(Exception error) {
-            error.printStackTrace();
-            promise.reject(toErrorCode(error), error.getMessage());
-          }
-        });
+              createBankAccount(accountData),
+              mPublicKey,
+              null,
+              new ApiResultCallback<Token>() {
+                  @Override
+                  public void onSuccess(Token token) {
+                      promise.resolve(convertTokenToWritableMap(token));
+                  }
+
+                  @Override
+                  public void onError(@NotNull Exception error) {
+                      error.printStackTrace();
+                      promise.reject(toErrorCode(error), error.getMessage());
+                  }
+              });
     } catch (Exception e) {
       promise.reject(toErrorCode(e), e.getMessage());
     }
@@ -225,7 +233,7 @@ public class StripeModule extends ReactContextBaseJavaModule {
 
   @ReactMethod
   public void paymentRequestWithAndroidPay(final ReadableMap payParams, final Promise promise) {
-    getPayFlow().paymentRequestWithAndroidPay(payParams, promise);
+    getPayFlow().paymentRequestWithAndroidPay(payParams, promise, mStripe);
   }
 
   private void attachPaymentResultActivityListener(final Promise promise) {
@@ -395,7 +403,7 @@ public class StripeModule extends ReactContextBaseJavaModule {
 
     ArgCheck.nonNull(sourceParams);
 
-    mStripe.createSource(sourceParams, new SourceCallback() {
+    mStripe.createSource(sourceParams, new ApiResultCallback<Source>() {
       @Override
       public void onError(Exception error) {
         promise.reject(toErrorCode(error));

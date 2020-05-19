@@ -62,7 +62,7 @@ class StripePayment {
   static Future<bool> _deviceSupportsApplePay() => _channel.invokeMethod("deviceSupportsApplePay");
 
   /// https://tipsi.github.io/tipsi-stripe/docs/paymentRequestWithNativePay.html
-  static Future<Token> paymentRequestWithNativePay(
+  static Future<PaymentMethod> paymentRequestWithNativePay(
       {@required AndroidPayPaymentRequest androidPayOptions, @required ApplePayPaymentOptions applePayOptions}) {
     if (kIsWeb) {
       throw UnimplementedError();
@@ -76,15 +76,15 @@ class StripePayment {
     }
   }
 
-  static Future<Token> _paymentRequestWithAndroidPay(AndroidPayPaymentRequest options) async {
-    final token = await _channel.invokeMethod("paymentRequestWithAndroidPay", options.toJson());
-    return Token.fromJson(token);
+  static Future<PaymentMethod> _paymentRequestWithAndroidPay(AndroidPayPaymentRequest options) async {
+    final paymentMethod = await _channel.invokeMethod("paymentRequestWithAndroidPay", options.toJson());
+    return PaymentMethod.fromJson(paymentMethod);
   }
 
-  static Future<Token> _paymentRequestWithApplePay(ApplePayPaymentOptions options) async {
-    final token = await _channel.invokeMethod("paymentRequestWithApplePay",
+  static Future<PaymentMethod> _paymentRequestWithApplePay(ApplePayPaymentOptions options) async {
+    final paymentMethod = await _channel.invokeMethod("paymentRequestWithApplePay",
         {"options": options.json, "items": options.items.map((item) => item.json).toList()});
-    return Token.fromJson(token);
+    return PaymentMethod.fromJson(paymentMethod);
   }
 
   /// https://tipsi.github.io/tipsi-stripe/docs/completeNativePayRequest.html

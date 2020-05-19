@@ -13,6 +13,8 @@ import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
 import com.google.android.gms.wallet.WalletConstants;
 import com.stripe.android.BuildConfig;
+import com.stripe.android.*;
+import com.stripe.android.model.*;
 
 public abstract class PayFlow {
 
@@ -79,7 +81,7 @@ public abstract class PayFlow {
     return Errors.getDescription(getErrorCodes(), key);
   }
 
-  abstract void paymentRequestWithAndroidPay(final ReadableMap payParams, final Promise promise);
+  abstract void paymentRequestWithAndroidPay(final ReadableMap payParams, final Promise promise, final Stripe stripe);
 
   abstract void deviceSupportsAndroidPay(boolean isExistingPaymentMethodRequired, final Promise promise);
 
