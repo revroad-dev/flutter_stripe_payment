@@ -30,6 +30,13 @@ class StripePaymentPlugin(private val stripeModule: StripeModule) : MethodCallHa
                 ReadableMap(call.arguments as Map<String, Any>),
                 Promise(result)
             )
+            "showPaymentOptions" -> stripeModule.showPaymentOptions(
+                ReadableMap(call.arguments as Map<String, Any>),
+                Promise(result)
+            )
+            "getStripeApiVersion" -> stripeModule.getStripeApiVersion(
+                Promise(result)
+            )
             "createTokenWithCard" -> stripeModule.createTokenWithCard(
                 ReadableMap(call.arguments as Map<String, Any>),
                 Promise(result)

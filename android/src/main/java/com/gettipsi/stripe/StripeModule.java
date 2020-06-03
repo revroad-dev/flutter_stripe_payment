@@ -6,8 +6,11 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.text.TextUtils;
+import android.util.Log;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.Size;
+
 import com.facebook.react.bridge.*;
 import com.gettipsi.stripe.util.ArgCheck;
 import com.gettipsi.stripe.util.Converters;
@@ -15,6 +18,7 @@ import com.gettipsi.stripe.util.Fun0;
 import com.google.android.gms.wallet.WalletConstants;
 import com.stripe.android.*;
 import com.stripe.android.model.*;
+import com.stripe.android.view.*;
 
 import org.jetbrains.annotations.NotNull;
 
@@ -98,6 +102,7 @@ public class StripeModule extends ReactContextBaseJavaModule {
       Stripe.setAppInfo(AppInfo.create(APP_INFO_NAME, APP_INFO_VERSION, APP_INFO_URL));
       mStripe = new Stripe(getReactApplicationContext(), mPublicKey);
       getPayFlow().setPublishableKey(mPublicKey);
+      PaymentConfiguration.init(getReactApplicationContext(), mPublicKey);
     }
 
     if (newAndroidPayMode != null) {
@@ -232,6 +237,28 @@ public class StripeModule extends ReactContextBaseJavaModule {
   }
 
   @ReactMethod
+  public void showPaymentOptions(ReadableMap params, final Promise promise) {
+    Activity currentActivity = getCurrentActivity();
+    try {
+      ArgCheck.nonNull(currentActivity);
+      ArgCheck.notEmptyString(mPublicKey);
+      attachPaymentMethodsActivityListener(promise);
+      CustomerSession.initCustomerSession(
+        currentActivity,
+        new MyEphemeralKeyProvider(params.getString("keyString"))
+      );
+      new PaymentMethodsActivityStarter(currentActivity).startForResult();
+    } catch (Exception e) {
+      promise.reject(toErrorCode(e), e.getMessage());
+    }
+  }
+
+  @ReactMethod
+  public void getStripeApiVersion(final Promise promise) {
+      promise.resolve(Stripe.API_VERSION);
+  }
+
+  @ReactMethod
   public void paymentRequestWithAndroidPay(final ReadableMap payParams, final Promise promise) {
     getPayFlow().paymentRequestWithAndroidPay(payParams, promise, mStripe);
   }
@@ -331,6 +358,33 @@ public class StripeModule extends ReactContextBaseJavaModule {
       }
     };
     addActivityEventListener(ael);
+  }
+
+  private void attachPaymentMethodsActivityListener(final Promise promise) {
+      ActivityEventListener ael = new BaseActivityEventListener() {
+
+          @Override
+          public void onActivityResult(Activity a, int requestCode, int resultCode, Intent data) {
+              removeActivityEventListener(this);
+              if (requestCode == PaymentMethodsActivityStarter.REQUEST_CODE) {
+                  final PaymentMethodsActivityStarter.Result result =
+                          PaymentMethodsActivityStarter.Result.fromIntent(data);
+                  final PaymentMethod paymentMethod = result != null ?
+                          result.paymentMethod : null;
+                  if (paymentMethod == null) {
+                      promise.reject(CANCELLED, CANCELLED);
+                  } else {
+                      promise.resolve(Converters.convertPaymentMethodToWritableMap(paymentMethod));
+                  }
+              }
+          }
+
+          @Override
+          public void onActivityResult(int requestCode, int resultCode, Intent data) {
+              onActivityResult(null, requestCode, resultCode, data);
+          }
+      };
+      addActivityEventListener(ael);
   }
 
   @ReactMethod
@@ -732,4 +786,18 @@ public class StripeModule extends ReactContextBaseJavaModule {
     }.execute();
   }
 
+  private class MyEphemeralKeyProvider implements EphemeralKeyProvider {
+      String keyString;
+
+      MyEphemeralKeyProvider(String keyString) {
+        this.keyString = keyString;
+      }
+
+      @Override
+      public void createEphemeralKey(
+              @NonNull @Size(min = 4) String apiVersion,
+              @NonNull final EphemeralKeyUpdateListener keyUpdateListener) {
+          keyUpdateListener.onKeyUpdate(keyString);
+      }
+  }
 }

@@ -7,9 +7,9 @@
     StripeModule* stripeModule;
 }
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
-    
+
     FlutterMethodChannel* channel = [FlutterMethodChannel methodChannelWithName:@"stripe_payment" binaryMessenger:[registrar messenger]];
-    
+
     StripePaymentPlugin* instance = [[StripePaymentPlugin alloc] init];
     [registrar addMethodCallDelegate:instance channel:channel];
 }
@@ -24,7 +24,6 @@
 }
 
 - (void)handleMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
-
     id rejecter = ^(NSString *code, NSString *message, NSError *error) {
         result([FlutterError errorWithCode:code ?: @"-" message:message details:error.localizedDescription]);
     };
@@ -60,6 +59,10 @@
         [stripeModule createSourceWithParams:call.arguments resolver:result rejecter:rejecter];
     } else if ([@"paymentRequestWithCardForm" isEqualToString:call.method]) {
         [stripeModule paymentRequestWithCardForm:call.arguments resolver:result rejecter:rejecter];
+    } else if ([@"showPaymentOptions" isEqualToString:call.method]) {
+        [stripeModule showPaymentOptions:call.arguments resolver:result rejecter:rejecter];
+    } else if ([@"getStripeApiVersion" isEqualToString:call.method]) {
+        [stripeModule getStripeApiVersionWithResolver:result rejecter:rejecter];
     } else if ([@"paymentRequestWithApplePay" isEqualToString:call.method]) {
         [stripeModule paymentRequestWithApplePay:call.arguments[@"items"] withOptions:call.arguments[@"options"] resolver:result rejecter:rejecter];
     } else if ([@"openApplePaySetup" isEqualToString:call.method]) {
@@ -67,3 +70,4 @@
     }
 }
 @end
+

@@ -8,9 +8,11 @@
 
 #import "TPSStripeManager.h"
 #import <Stripe/Stripe.h>
-
+#import "STPAPIClient+Private.h"
 #import "TPSError.h"
 #import "TPSStripeManager+Constants.h"
+
+#import "MyApiClient.h"
 
 // If you change these, make sure to also change:
 //  android/src/main/java/com/gettipsi/stripe/StripeModule.java
@@ -252,12 +254,13 @@ void initializeTPSPaymentNetworksWithConditionalMappings() {
     mapTPSPaymentNetworkToPKPaymentNetwork = tmp;
 }
 
-@interface StripeModule () <STPAuthenticationContext>
+@interface StripeModule () <STPAuthenticationContext, STPPaymentContextDelegate, STPPaymentOptionsViewControllerDelegate>
 {
     NSString *publishableKey;
     NSString *merchantId;
     NSString *stripeAccount;
     NSDictionary *errorCodes;
+    id<STPPaymentOption> paymentOption;
 
     RCTPromiseResolveBlock promiseResolver;
     RCTPromiseRejectBlock promiseRejector;
@@ -268,6 +271,7 @@ void initializeTPSPaymentNetworksWithConditionalMappings() {
     NSError *applePayStripeError;
 }
 @end
+
 @implementation StripeModule
 
 #define RCTPresentedViewController() [[[UIApplication sharedApplication] keyWindow] rootViewController]
@@ -302,6 +306,7 @@ void initializeTPSPaymentNetworksWithConditionalMappings() {
     merchantId = options[@"merchantId"];
     errorCodes = errors;
     [Stripe setDefaultPublishableKey:publishableKey];
+    [STPPaymentConfiguration sharedConfiguration].appleMerchantIdentifier = merchantId;
 }
 
 -(void)setStripeAccount:(NSString *)_stripeAccount {
@@ -810,6 +815,75 @@ void initializeTPSPaymentNetworksWithConditionalMappings() {
     dispatch_async(dispatch_get_main_queue(), ^{
         [RCTPresentedViewController() presentViewController:navigationController animated:YES completion:nil];
     });
+}
+
+-(void)showPaymentOptions:(NSDictionary *)options
+                 resolver:(RCTPromiseResolveBlock)resolve
+                 rejecter:(RCTPromiseRejectBlock)reject {
+    if(!requestIsCompleted) {
+        NSDictionary *error = [errorCodes valueForKey:kErrorKeyBusy];
+        reject(error[kErrorKeyCode], error[kErrorKeyDescription], nil);
+        return;
+    }
+
+    requestIsCompleted = NO;
+    // Save promise handlers to use in `paymentAuthorizationViewController`
+    promiseResolver = resolve;
+    promiseRejector = reject;
+
+    STPTheme *theme = [self formTheme:options[@"theme"]];
+    STPCustomerContext *customerContext = [[STPCustomerContext alloc] initWithKeyProvider:[[MyAPIClient alloc] initWithKeyJson:options[@"keyJson"]]];
+
+    STPPaymentOptionsViewController *vc = [[STPPaymentOptionsViewController alloc] initWithConfiguration:[STPPaymentConfiguration sharedConfiguration] theme:theme customerContext:customerContext delegate:self];
+    // STPPaymentOptionsViewController must be shown inside a UINavigationController.
+    UINavigationController *navigationController = [[UINavigationController alloc] initWithRootViewController:vc];
+    // move to the end of main queue
+    // allow the execution of hiding modal
+    // to be finished first
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [RCTPresentedViewController() presentViewController:navigationController animated:YES completion:nil];
+    });
+}
+
+- (void)paymentOptionsViewControllerDidCancel:(STPPaymentOptionsViewController *)paymentOptionsViewController {
+//    NSLog(@"paymentOptionsViewControllerDidCancel");
+    [RCTPresentedViewController() dismissViewControllerAnimated:YES completion:nil];
+
+    if (!requestIsCompleted) {
+        requestIsCompleted = YES;
+        NSDictionary *error = [errorCodes valueForKey:kErrorKeyCancelled];
+        [self rejectPromiseWithCode:error[kErrorKeyCode] message:error[kErrorKeyDescription]];
+    }
+}
+
+- (void)paymentOptionsViewControllerDidFinish:(STPPaymentOptionsViewController *)paymentOptionsViewController {
+//    NSLog(@"paymentOptionsViewControllerDidFinish");
+    [RCTPresentedViewController() dismissViewControllerAnimated:YES completion:nil];
+    requestIsCompleted = YES;
+    if ([paymentOption isKindOfClass: [STPPaymentMethod class]]) {
+        [self resolvePromise:[self convertPaymentMethod:(STPPaymentMethod *)paymentOption]];
+    }
+    else if ([paymentOption isKindOfClass: [STPApplePayPaymentOption class]]) {
+        [self resolvePromise:@"APPLE_PAY"];
+    }
+}
+
+- (void)paymentOptionsViewController:(STPPaymentOptionsViewController *)paymentOptionsViewController didFailToLoadWithError:(NSError *)error {
+//    NSLog(@"paymentOptionsViewController:didFailToLoadWithError");
+    [RCTPresentedViewController() dismissViewControllerAnimated:YES completion:nil];
+    requestIsCompleted = YES;
+    NSDictionary *error = [self->errorCodes valueForKey:kErrorKeySourceStatusUnknown];
+    [self rejectPromiseWithCode:error[kErrorKeyCode] message:error[kErrorKeyDescription]];
+}
+
+- (void)paymentOptionsViewController:(STPPaymentOptionsViewController *)paymentOptionsViewController didSelectPaymentOption:(id<STPPaymentOption>)tmpPaymentOption {
+//    NSLog(@"paymentOptionsViewController:didSelectPaymentOption");
+    paymentOption = tmpPaymentOption;
+}
+
+- (void)getStripeApiVersionWithResolver:(RCTPromiseResolveBlock)resolve
+                              rejecter:(RCTPromiseRejectBlock)reject {
+    resolve([STPAPIClient apiVersion]);
 }
 
 -(void)paymentRequestWithApplePay:(NSArray *)items

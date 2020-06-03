@@ -121,6 +121,19 @@ class StripePayment {
     return PaymentMethod.fromJson(token);
   }
 
+  static Future<String> getStripeApiVersion() => _channel.invokeMethod("getStripeApiVersion");
+
+  static Future<dynamic> showPaymentOptions(Map<String, dynamic> keyJson, String keyString) async {
+    Map<String, dynamic> options = {"keyJson": keyJson, "keyString": keyString};
+    final result = await _channel.invokeMethod("showPaymentOptions", options);
+    if (result == 'APPLE_PAY') {
+      return result;
+    }
+    else {
+      return PaymentMethod.fromJson(result);
+    }
+  }
+
   /// https://tipsi.github.io/tipsi-stripe/docs/createTokenWithCard.html
   static Future<Token> createTokenWithCard(CreditCard card) async {
     final token = await _channel.invokeMethod("createTokenWithCard", card.toJson());
