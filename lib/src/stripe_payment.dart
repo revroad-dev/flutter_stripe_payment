@@ -193,12 +193,16 @@ class StripeOptions {
   final String publishableKey;
   final String merchantId;
   final String androidPayMode;
+  final Map<String, int> iosTheme;
 
-  StripeOptions({@required this.publishableKey, this.merchantId, this.androidPayMode});
+  StripeOptions({@required this.publishableKey, this.merchantId, this.androidPayMode, this.iosTheme});
 
   factory StripeOptions.fromJson(Map<String, dynamic> json) {
     return StripeOptions(
-        merchantId: json['merchantId'], publishableKey: json['publishableKey'], androidPayMode: json['androidPayMode']);
+      merchantId: json['merchantId'],
+      publishableKey: json['publishableKey'],
+      androidPayMode: json['androidPayMode'],
+      iosTheme: json['iosTheme'],);
   }
 
   Map<String, dynamic> toJson() {
@@ -206,6 +210,7 @@ class StripeOptions {
     if (this.merchantId != null) data['merchantId'] = this.merchantId;
     if (this.publishableKey != null) data['publishableKey'] = this.publishableKey;
     if (this.androidPayMode != null) data['androidPayMode'] = this.androidPayMode;
+    if (this.iosTheme != null) data['iosTheme'] = this.iosTheme;
     return data;
   }
 }

@@ -25,7 +25,7 @@ typedef void (^RCTPromiseResolveBlock)(id result);
 typedef void (^RCTPromiseRejectBlock)(NSString *code, NSString *message, NSError *error);
 
 
-@interface StripeModule : NSObject <PKPaymentAuthorizationViewControllerDelegate, STPAddCardViewControllerDelegate, STPPaymentContextDelegate>
+@interface StripeModule : NSObject <PKPaymentAuthorizationViewControllerDelegate, STPAddCardViewControllerDelegate, STPPaymentOptionsViewControllerDelegate>
 
 @property (nonatomic) STPRedirectContext *redirectContext;
 

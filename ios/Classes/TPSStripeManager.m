@@ -254,7 +254,7 @@ void initializeTPSPaymentNetworksWithConditionalMappings() {
     mapTPSPaymentNetworkToPKPaymentNetwork = tmp;
 }
 
-@interface StripeModule () <STPAuthenticationContext, STPPaymentContextDelegate, STPPaymentOptionsViewControllerDelegate>
+@interface StripeModule () <STPAuthenticationContext>
 {
     NSString *publishableKey;
     NSString *merchantId;
@@ -307,6 +307,7 @@ void initializeTPSPaymentNetworksWithConditionalMappings() {
     errorCodes = errors;
     [Stripe setDefaultPublishableKey:publishableKey];
     [STPPaymentConfiguration sharedConfiguration].appleMerchantIdentifier = merchantId;
+    [self setTheme:options[@"iosTheme"] ?: @{}];
 }
 
 -(void)setStripeAccount:(NSString *)_stripeAccount {
@@ -795,20 +796,19 @@ void initializeTPSPaymentNetworksWithConditionalMappings() {
     STPUserInformation *prefilledInformation = [self userInformation:options[@"prefilledInformation"]];
     NSString *nextPublishableKey = options[@"publishableKey"] ? options[@"publishableKey"] : publishableKey;
     UIModalPresentationStyle formPresentation = [self formPresentation:options[@"presentation"]];
-    STPTheme *theme = [self formTheme:options[@"theme"]];
 
     STPPaymentConfiguration *configuration = [[STPPaymentConfiguration alloc] init];
     [configuration setRequiredBillingAddressFields:requiredBillingAddressFields];
     [configuration setCompanyName:companyName];
     [configuration setPublishableKey:nextPublishableKey];
 
-    STPAddCardViewController *vc = [[STPAddCardViewController alloc] initWithConfiguration:configuration theme:theme];
+    STPAddCardViewController *vc = [[STPAddCardViewController alloc] initWithConfiguration:configuration theme:[STPTheme defaultTheme]];
     vc.delegate = self;
     vc.prefilledInformation = prefilledInformation;
     // STPAddCardViewController must be shown inside a UINavigationController.
     UINavigationController *navigationController = [[UINavigationController alloc] initWithRootViewController:vc];
     [navigationController setModalPresentationStyle:formPresentation];
-    navigationController.navigationBar.stp_theme = theme;
+    navigationController.navigationBar.stp_theme = [STPTheme defaultTheme];
     // move to the end of main queue
     // allow the execution of hiding modal
     // to be finished first
@@ -831,10 +831,9 @@ void initializeTPSPaymentNetworksWithConditionalMappings() {
     promiseResolver = resolve;
     promiseRejector = reject;
 
-    STPTheme *theme = [self formTheme:options[@"theme"]];
     STPCustomerContext *customerContext = [[STPCustomerContext alloc] initWithKeyProvider:[[MyAPIClient alloc] initWithKeyJson:options[@"keyJson"]]];
 
-    STPPaymentOptionsViewController *vc = [[STPPaymentOptionsViewController alloc] initWithConfiguration:[STPPaymentConfiguration sharedConfiguration] theme:theme customerContext:customerContext delegate:self];
+    STPPaymentOptionsViewController *vc = [[STPPaymentOptionsViewController alloc] initWithConfiguration:[STPPaymentConfiguration sharedConfiguration] theme:[STPTheme defaultTheme] customerContext:customerContext delegate:self];
     // STPPaymentOptionsViewController must be shown inside a UINavigationController.
     UINavigationController *navigationController = [[UINavigationController alloc] initWithRootViewController:vc];
     // move to the end of main queue
@@ -872,8 +871,7 @@ void initializeTPSPaymentNetworksWithConditionalMappings() {
 //    NSLog(@"paymentOptionsViewController:didFailToLoadWithError");
     [RCTPresentedViewController() dismissViewControllerAnimated:YES completion:nil];
     requestIsCompleted = YES;
-    NSDictionary *error = [self->errorCodes valueForKey:kErrorKeySourceStatusUnknown];
-    [self rejectPromiseWithCode:error[kErrorKeyCode] message:error[kErrorKeyDescription]];
+    [self rejectPromiseWithCode:[@(error.code) stringValue]  message:error.description error:error];
 }
 
 - (void)paymentOptionsViewController:(STPPaymentOptionsViewController *)paymentOptionsViewController didSelectPaymentOption:(id<STPPaymentOption>)tmpPaymentOption {
@@ -1788,7 +1786,7 @@ void initializeTPSPaymentNetworksWithConditionalMappings() {
 
 - (STPBillingAddressFields)billingType:(NSString*)inputType {
     if ([inputType isEqualToString:@"zip"]) {
-        return STPBillingAddressFieldsZip;
+        return STPBillingAddressFieldsPostalCode;
     }
     if ([inputType isEqualToString:@"name"]) {
         return STPBillingAddressFieldsName;
@@ -1824,9 +1822,8 @@ void initializeTPSPaymentNetworksWithConditionalMappings() {
     return address;
 }
 
-- (STPTheme *)formTheme:(NSDictionary*)options {
-    STPTheme *theme = [[STPTheme alloc] init];
-
+- (void)setTheme:(NSDictionary*)options {
+    STPTheme *theme = [STPTheme defaultTheme];
     [theme setPrimaryBackgroundColor:[RCTConvert UIColor:options[@"primaryBackgroundColor"]]];
     [theme setSecondaryBackgroundColor:[RCTConvert UIColor:options[@"secondaryBackgroundColor"]]];
     [theme setPrimaryForegroundColor:[RCTConvert UIColor:options[@"primaryForegroundColor"]]];
@@ -1835,8 +1832,6 @@ void initializeTPSPaymentNetworksWithConditionalMappings() {
     [theme setErrorColor:[RCTConvert UIColor:options[@"errorColor"]]];
     [theme setErrorColor:[RCTConvert UIColor:options[@"errorColor"]]];
     // TODO: process font vars
-
-    return theme;
 }
 
 - (UIModalPresentationStyle)formPresentation:(NSString*)inputType {
