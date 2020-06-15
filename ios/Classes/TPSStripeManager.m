@@ -836,6 +836,7 @@ void initializeTPSPaymentNetworksWithConditionalMappings() {
     STPPaymentOptionsViewController *vc = [[STPPaymentOptionsViewController alloc] initWithConfiguration:[STPPaymentConfiguration sharedConfiguration] theme:[STPTheme defaultTheme] customerContext:customerContext delegate:self];
     // STPPaymentOptionsViewController must be shown inside a UINavigationController.
     UINavigationController *navigationController = [[UINavigationController alloc] initWithRootViewController:vc];
+    [navigationController setModalPresentationStyle:UIModalPresentationFullScreen];
     // move to the end of main queue
     // allow the execution of hiding modal
     // to be finished first
